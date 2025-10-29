@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding-top: 50px; }
+        .success { color: green; }
+        .time { font-size: 1.2em; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Welcome, {{ username }}!</h1>
+    <p class="success">You are successfully logged in.</p>
+    
+    <hr>
+    <h3>⏱️ Session Status</h3>
+    <p>Elapsed Time Since Login: <span class="time">{{ elapsed }}</span></p>
+    
+    <p><a href="{{ url_for('logout') }}"><button>Logout Now</button></a></p>
+    <p style="margin-top: 30px;"><a href="{{ url_for('show_logs') }}">View All Session Logs (Admin)</a></p>
+</body>
+</html>

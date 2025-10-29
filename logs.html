@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Session Logs</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Historical Session Logs</h1>
+    <a href="{{ url_for('dashboard') }}">Go to Dashboard</a>
+    
+    {% if logs %}
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Login Time</th>
+                    <th>Logout Time</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                    <tr>
+                        <td>{{ log.user }}</td>
+                        <td>{{ log.login.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ log.logout.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ log.duration|string.split('.')[0] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No session logs available yet.</p>
+    {% endif %}
+</body>
+</html>
