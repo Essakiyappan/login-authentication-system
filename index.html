@@ -7,7 +7,7 @@
     <style>
         body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f9; }
         .login-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 180px; margin: 20px auto; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 180px; margin: 20px auto; user-select: none; }
         .dot { width: 50px; height: 50px; border-radius: 50%; background-color: #ccc; border: 2px solid #aaa; cursor: pointer; transition: background-color 0.2s; }
         .dot.selected { background-color: #007bff; border-color: #0056b3; }
         input[type="text"] { padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; width: 80%; }
@@ -26,15 +26,9 @@
             <input type="text" name="username" placeholder="Username (e.g., alice or bob)" required>
             
             <div class="grid" id="pattern-grid">
-                <div class="dot" data-id="1"></div>
-                <div class="dot" data-id="2"></div>
-                <div class="dot" data-id="3"></div>
-                <div class="dot" data-id="4"></div>
-                <div class="dot" data-id="5"></div>
-                <div class="dot" data-id="6"></div>
-                <div class="dot" data-id="7"></div>
-                <div class="dot" data-id="8"></div>
-                <div class="dot" data-id="9"></div>
+                {% for i in range(1,10) %}
+                    <div class="dot" data-id="{{ i }}"></div>
+                {% endfor %}
             </div>
             
             <input type="hidden" name="pattern" id="pattern-input" required>
@@ -50,81 +44,44 @@
     const patternInput = document.getElementById('pattern-input');
     let currentPattern = [];
     let isDrawing = false;
-    
-    // --- Utility Functions ---
 
-    // Function to clear the pattern and reset the UI
     function resetPattern() {
         currentPattern = [];
         dots.forEach(dot => dot.classList.remove('selected'));
         patternInput.value = '';
     }
 
-    // Handles the selection logic for a single dot
     function selectDot(dot) {
         const dotId = dot.dataset.id;
-
-        // 1. If we are NOT drawing, this is the START of a new pattern
-        if (!isDrawing) {
-            resetPattern(); // Ensure any old pattern is cleared
-            isDrawing = true;
-        }
-
-        // 2. Add the dot if it hasn't been selected yet
+        if (!isDrawing) isDrawing = true;
         if (!currentPattern.includes(dotId)) {
             currentPattern.push(dotId);
             dot.classList.add('selected');
-            console.log("Current Pattern:", currentPattern.join(''));
         }
     }
 
-    // --- Event Listeners ---
-    
-    // 1. Reset/Start logic for the entire grid
-    document.getElementById('pattern-grid').addEventListener('mousedown', (e) => {
-        // Only reset if we click the *background* of the grid, not a dot
-        if (e.target.classList.contains('grid')) {
-            resetPattern();
-            isDrawing = true;
-        }
-    });
-
-    // 2. Handles the end of the drawing (on mouse release anywhere)
-    document.addEventListener('mouseup', () => {
-        if (isDrawing) {
-            isDrawing = false;
-        }
-    });
-    
-    // 3. Dot interaction listeners
     dots.forEach(dot => {
-        // Use mousedown to ensure the first click is registered instantly
-        dot.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // Stop text selection/dragging which interferes
-            selectDot(dot);
-        });
-        
-        // Use mouseenter ONLY if we are currently drawing
-        dot.addEventListener('mouseenter', () => {
-            if (isDrawing) {
-                selectDot(dot);
-            }
+        dot.addEventListener('mousedown', e => { e.preventDefault(); selectDot(dot); });
+        dot.addEventListener('mouseenter', () => { if (isDrawing) selectDot(dot); });
+        dot.addEventListener('touchstart', e => { e.preventDefault(); selectDot(dot); });
+        dot.addEventListener('touchmove', e => {
+            const touch = e.touches[0];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (element && element.classList.contains('dot')) selectDot(element);
         });
     });
 
-    // --- Form Submission ---
+    ['mouseup', 'touchend'].forEach(evt => document.addEventListener(evt, () => { isDrawing = false; }));
+
     function finalizePattern() {
-        // Ensure the pattern is at least 3 dots long for minimal security
         if (currentPattern.length >= 3) {
-            // Join the dot IDs into a single string (the 'pattern hash')
-            patternInput.value = currentPattern.join(''); 
-            isDrawing = false; // Finalize the drawing state
-            return true; // Allow form submission
+            patternInput.value = currentPattern.join('');
+            return true;
         } else {
             alert('Please draw a pattern with at least 3 dots.');
-            return false; // Prevent form submission
+            return false;
         }
     }
-</script>
+   </script>
 </body>
 </html>
