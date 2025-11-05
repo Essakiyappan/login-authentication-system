@@ -1,65 +1,76 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from datetime import datetime, timedelta
+import os
 
 app = Flask(__name__)
-# IMPORTANT: A secret key is required to manage sessions (cookies) securely
-app.secret_key = 'your_super_secret_key_here' 
 
-# --- System Databases (In-Memory) ---
+# ✅ Secure secret key (use environment variable in production)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your_super_secret_key_here')
+
+# --- In-Memory Databases ---
 USERS_DB = {
-    "alice": "12369874",  # A pattern sequence hash: 1-2-3-6-9-8-7-4
-    "bob": "159753"      # Another pattern sequence hash
+    "alice": "12369874",  # pattern: 1-2-3-6-9-8-7-4
+    "bob": "159753"       # pattern: 1-5-9-7-5-3 (example)
 }
-# Tracks active sessions: {username: login_datetime_object}
-ACTIVE_SESSIONS = {}
-# Stores all historical session records
-SESSION_LOGS = []
 
-# --- Core Concept: Login Route ---
+ACTIVE_SESSIONS = {}  # {username: login_time}
+SESSION_LOGS = []      # list of dicts: user, login, logout, duration
+
+# --- Optional Session Timeout (auto-logout after inactivity) ---
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(minutes=15)
+
+# --- Login Route ---
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if 'username' in session:
         return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
-        username = request.form['username']
-        # The 'pattern' comes from the hidden input filled by JavaScript
-        submitted_pattern = request.form['pattern']
+        username = request.form.get('username')
+        submitted_pattern = request.form.get('pattern')
 
-        # 1. Authentication
+        if not username or not submitted_pattern:
+            return render_template('login.html', error="Please enter both username and pattern.")
+
+        # Authenticate
         if username in USERS_DB and USERS_DB[username] == submitted_pattern:
-            # 2. Record Login Time (Timestamp)
+            session.clear()  # prevent session fixation
             login_time = datetime.now()
             ACTIVE_SESSIONS[username] = login_time
-            
-            # Use Flask's session object to track the logged-in user
             session['username'] = username
             session['login_time'] = login_time.strftime('%Y-%m-%d %H:%M:%S')
 
-            print(f"LOGIN: {username} at {login_time}")
+            print(f"[LOGIN] {username} at {login_time}")
             return redirect(url_for('dashboard'))
         else:
-            error = "Invalid username or pattern."
-            return render_template('login.html', error=error)
-            
+            return render_template('login.html', error="Invalid username or pattern.")
+
     return render_template('login.html')
 
-# --- User Dashboard Route ---
+
+# --- Dashboard Route ---
 @app.route('/dashboard')
 def dashboard():
     if 'username' not in session:
         return redirect(url_for('login'))
-        
+
     username = session['username']
     login_time_str = session['login_time']
-    
-    # Calculate the elapsed time since login
-    login_time = datetime.strptime(login_time_str, '%Y-%m-%d %H:%M:%S')
+
+    try:
+        login_time = datetime.strptime(login_time_str, '%Y-%m-%d %H:%M:%S')
+    except ValueError:
+        return redirect(url_for('logout'))
+
     elapsed = datetime.now() - login_time
-    
+
     return render_template('dashboard.html', username=username, elapsed=str(elapsed).split('.')[0])
 
-# --- Core Concept: Logout Route ---
+
+# --- Logout Route ---
 @app.route('/logout')
 def logout():
     if 'username' not in session:
@@ -69,32 +80,29 @@ def logout():
     login_time_str = session.pop('login_time', None)
 
     if username and login_time_str:
-        # Get recorded login time
         login_time = ACTIVE_SESSIONS.pop(username, None)
-        # Record logout time
         logout_time = datetime.now()
 
         if login_time:
-            # Calculate Session Duration
-            session_duration = logout_time - login_time
-
-            # Store the log
+            duration = logout_time - login_time
             SESSION_LOGS.append({
                 "user": username,
                 "login": login_time,
                 "logout": logout_time,
-                "duration": session_duration
+                "duration": duration
             })
-            print(f"LOGOUT: {username}. Duration: {session_duration}")
+            print(f"[LOGOUT] {username} | Duration: {duration}")
 
     return redirect(url_for('login'))
 
-# --- Log Display Route (For admin/testing purposes) ---
+
+# --- Logs Route (Admin view) ---
 @app.route('/logs')
 def show_logs():
+    if 'username' not in session:
+        return redirect(url_for('login'))
     return render_template('logs.html', logs=SESSION_LOGS)
 
 
 if __name__ == '__main__':
-    # Flask runs on http://127.0.0.1:5000/
     app.run(debug=True)
